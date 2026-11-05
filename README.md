@@ -1,4 +1,6 @@
-# Ecommerce Router
+# agenticia26
+
+## Ecommerce Router
 
 Agente LangGraph y API FastAPI para clasificar mensajes de un chat de ecommerce en tres rutas: `preventa`, `postventa` y `generica`. La ruta de preventa y postventa responde con un agente cascarón; la respuesta genérica no usa el modelo. El router usa Gemini con salida estructurada y conserva memoria por `user_id`/`thread_id`.
 
