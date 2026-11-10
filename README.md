@@ -44,7 +44,7 @@ Abre <http://localhost:8000/docs> para probar la API en Swagger. Ejemplo para `/
 curl.exe -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d '{"user_id":"usuario-123","texto":"¿Tienen la polera azul en talla M?"}'
 ```
 
-La API también tiene `GET /health`. El `POST /telegram` actual es solo un cascarón y aún no procesa ni verifica webhooks.
+La API también tiene `GET /health`. El webhook `POST /telegram` acepta updates de texto, valida el secreto de Telegram y envía la respuesta por la Bot API.
 
 ## Pruebas
 
@@ -69,25 +69,67 @@ El proyecto incluye `Procfile`, `.python-version` (`3.12`) y `requirements.txt`.
 ```powershell
 heroku login
 heroku create <nombre-unico-de-la-app>
-heroku config:set GOOGLE_API_KEY=<tu-clave> MODELO=gemini-3.5-flash-lite TELEGRAM_TOKEN=<token-de-BotFather> TELEGRAM_SECRET=<secreto-aleatorio> PUBLIC_URL=https://<nombre-unico-de-la-app>.herokuapp.com
+heroku config:set GOOGLE_API_KEY=<tu-clave> MODELO=gemini-3.5-flash-lite
 git push heroku main
 heroku open
 ```
 
 Si Heroku no es todavía un remoto Git, añádelo una vez con `heroku git:remote -a <nombre-unico-de-la-app>`. Verifica el despliegue en `https://<nombre-unico-de-la-app>.herokuapp.com/health` y abre `/docs`.
 
-## Conectar Telegram
+## Telegram
 
-1. Crea el bot con BotFather y configura `TELEGRAM_TOKEN` en Heroku.
-2. Despliega la app con una URL HTTPS pública y establece `PUBLIC_URL` con esa URL.
-3. Cuando se complete la integración Telegram (el endpoint actual aún es un cascarón), registra el webhook con el token y secreto de tu entorno. En PowerShell:
+La integración usa solo `httpx`, sin librerías de bot. El webhook valida `X-Telegram-Bot-Api-Secret-Token`, toma `message.chat.id` y `message.text`, ejecuta el grafo con `chat_id` como `thread_id` y responde con `sendMessage`. Los updates sin texto se ignoran. No pongas el token del bot en el código ni en Git.
+
+### Pasos de despliegue y verificación
+
+1. Crea el bot con `@BotFather` usando `/newbot`. Copia el token y elige un secreto propio (no uses el valor de ejemplo `cambiame`). Configúralos en Heroku:
+
+   ```powershell
+   $app = "<nombre-de-tu-app-heroku>"
+   heroku config:set --app $app TELEGRAM_TOKEN="<token-de-BotFather>" TELEGRAM_SECRET="<secreto-aleatorio>" PUBLIC_URL="https://<nombre-de-tu-app-heroku>.herokuapp.com"
+   ```
+
+2. Desde la raíz del repositorio, commitea y despliega los cambios a GitHub y Heroku:
+
+   ```powershell
+   git add api/app.py scripts/set_webhook.py scripts/webhook_info.py README.md
+   git commit -m "Conecta webhook de Telegram"
+   git push origin main
+   git push heroku main
+   ```
+
+   Si todavía no configuraste el remoto de Heroku: `heroku git:remote -a <nombre-de-tu-app-heroku>`.
+
+3. En tu `.env` local, configura `TELEGRAM_TOKEN`, el mismo `TELEGRAM_SECRET` y `PUBLIC_URL=https://<nombre-de-tu-app-heroku>.herokuapp.com`. Registra y comprueba el webhook:
+
+   ```powershell
+   python scripts/set_webhook.py
+   python scripts/webhook_info.py
+   ```
+
+   El segundo comando comprueba la URL esperada, los updates pendientes y el último error de Telegram.
+
+4. Abre otra terminal y sigue los logs; después envía estos seis mensajes al bot y comprueba la ruta que registra el router:
+
+   ```powershell
+   heroku logs --tail --app $app
+   ```
+
+   - `¿tienen la polera azul en talla M?` → `preventa`
+   - `mi pedido 4521 llegó roto` → `postventa`
+   - `hola` → `generica`
+   - `¿cuánto cuesta el envío a Valparaíso?` → `preventa`
+   - `quiero devolver unas zapatillas` → `postventa`
+   - `¿qué hora es en Tokio?` → `generica`
+
+5. Si el bot no responde, comprueba que `/telegram` esté disponible por HTTPS, que `TELEGRAM_SECRET` en Heroku coincida con el secreto usado al registrar el webhook, que `TELEGRAM_TOKEN` sea el de ese bot y que `python scripts/webhook_info.py` no reporte errores pendientes. Revisa también `heroku logs --tail --app $app`.
+
+### Prueba local opcional
+
+Con la API local levantada en el puerto 8000, puedes exponerla temporalmente con Cloudflare Tunnel:
 
 ```powershell
-$token = "<token-de-BotFather>"
-$publicUrl = "https://<nombre-unico-de-la-app>.herokuapp.com"
-$secret = "<mismo-valor-de-TELEGRAM_SECRET>"
-$body = @{ url = "$publicUrl/telegram"; secret_token = $secret } | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri "https://api.telegram.org/bot$token/setWebhook" -ContentType "application/json" -Body $body
+cloudflared tunnel --url http://localhost:8000
 ```
 
-Telegram enviará el secreto en `X-Telegram-Bot-Api-Secret-Token`. **En esta versión `/telegram` todavía no valida ese header ni procesa actualizaciones**; completar esa lógica es necesario antes de usar el webhook en producción.
+Usa la URL HTTPS que imprime `cloudflared` como `PUBLIC_URL` en `.env` y ejecuta los dos scripts de webhook anteriores. Mantén la API ejecutándose mientras pruebas.
