@@ -2,16 +2,39 @@ import logging
 import os
 import hmac
 import asyncio
+import secrets
 from typing import Any, Literal
 
 import httpx
-from fastapi import Body, FastAPI, Header, HTTPException
+from fastapi import Body, FastAPI, Header, HTTPException, Security
+from fastapi.security import APIKeyHeader
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.router.graph import graph
 
 logger = logging.getLogger(__name__)
+
+api_key_header = APIKeyHeader(
+    name="X-API-Key",
+    scheme_name="APIKey",
+    description="Clave configurada en API_KEY. Necesaria solo para /chat.",
+    auto_error=False,
+)
+
+
+async def verificar_api_key(key: str | None = Security(api_key_header)) -> None:
+    expected_key = os.getenv("API_KEY", "")
+    if (
+        not expected_key
+        or not key
+        or not secrets.compare_digest(key.encode("utf-8"), expected_key.encode("utf-8"))
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Clave de API ausente o inválida. Envía una clave válida en X-API-Key.",
+        )
+
 
 TAGS_METADATA = [
     {"name": "salud", "description": "Estado y configuración básica de la API."},
@@ -97,11 +120,13 @@ async def health() -> HealthResponse:
 @app.post(
     "/chat",
     response_model=ChatResponse,
+    dependencies=[Security(verificar_api_key)],
     tags=["chat"],
     summary="Enrutar un mensaje del chat",
     description="Clasifica el mensaje y devuelve la ruta, el motivo y la respuesta del agente destino.",
     responses={
         200: {"description": "Mensaje clasificado y respondido.", "model": ChatResponse},
+        401: {"description": "Cabecera X-API-Key ausente o inválida."},
         422: {"description": "El body falta o no cumple el esquema ChatRequest."},
         502: {"description": "El modelo de enrutamiento no pudo procesar el mensaje."},
     },

@@ -38,15 +38,42 @@ python main.py router "hola" --diagrama
 uvicorn api.app:app --reload --port 8000
 ```
 
-Abre <http://localhost:8000/docs> para probar la API en Swagger. Ejemplo para `/chat`:
+Abre <http://localhost:8000/docs> y pulsa **Authorize** (el candado) para introducir tu clave y probar `/chat`. Ejemplo en PowerShell (usa la clave que configuraste):
 
 ```powershell
-curl.exe -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d '{"user_id":"usuario-123","texto":"¿Tienen la polera azul en talla M?"}'
+$apiKey = Read-Host "API_KEY"
+curl.exe -X POST http://localhost:8000/chat -H "X-API-Key: $apiKey" -H "Content-Type: application/json" -d '{"user_id":"usuario-123","texto":"¿Tienen la polera azul en talla M?"}'
 ```
 
 La API también tiene `GET /health`. El webhook `POST /telegram` acepta updates de texto, valida el secreto de Telegram y envía la respuesta por la Bot API.
 
+## Clave de la API
+
+`POST /chat` exige la cabecera `X-API-Key`. Si falta, es incorrecta o el servidor no tiene `API_KEY` configurada, responde **401** sin ejecutar el grafo. El body y la respuesta no cambian. `/health` sigue abierto y `/telegram` conserva su autenticación propia.
+
+Genera una clave aleatoria desde el entorno virtual:
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+En local, copia el resultado en `.env` como `API_KEY=<clave-generada>` y reinicia la API. Sustituye el valor ficticio de `.env.example`; no lo uses como clave real ni publiques tu `.env`.
+
+En Heroku, abre **Settings → Config Vars → Reveal Config Vars** y añade `API_KEY` con la clave generada. También puedes configurarla mediante CLI:
+
+```powershell
+heroku config:set API_KEY="<clave-generada>" --app <nombre-de-tu-app-heroku>
+```
+
+Usa la misma clave en **Authorize** de `/docs` o en la cabecera `X-API-Key` de tu cliente (incluido Bruno). No la añadas a colecciones versionadas ni a código público.
+
 ## Pruebas
+
+Las pruebas de autenticación y webhook no llaman al modelo ni a Telegram:
+
+```powershell
+pytest -q tests/test_api.py tests/test_telegram.py
+```
 
 Con `.env` configurado, ejecuta las 15 pruebas parametrizadas (exigen al menos 13 aciertos; llaman al modelo):
 
