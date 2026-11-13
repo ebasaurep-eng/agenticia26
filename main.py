@@ -17,6 +17,7 @@ def main() -> None:
     parser.add_argument("mensaje", help="Mensaje que recibirá el agente")
     parser.add_argument("--saltos", action="store_true", help="Imprimir nodos recorridos y motivo")
     parser.add_argument("--diagrama", action="store_true", help="Imprimir Mermaid sin ejecutar")
+    parser.add_argument("--hilo", help="Thread ID de la conversación (por defecto: uno nuevo)")
     args = parser.parse_args()
 
     try:
@@ -26,13 +27,17 @@ def main() -> None:
             parser.error(f"No existe el agente '{args.agente}' en src/{args.agente}/")
         raise
 
-    graph = module.graph
     if args.diagrama:
+        graph = module.build_graph()
         print(graph.get_graph().draw_mermaid())
         return
 
-    config = {"configurable": {"thread_id": str(uuid.uuid4())}}
-    result = graph.invoke({"messages": [HumanMessage(content=args.mensaje)]}, config=config)
+    runtime_module = importlib.import_module(f"src.{args.agente}.runtime")
+    config = {"configurable": {"thread_id": args.hilo or str(uuid.uuid4())}}
+    with runtime_module.open_graph() as runtime:
+        result = runtime.graph.invoke(
+            {"messages": [HumanMessage(content=args.mensaje)]}, config=config
+        )
     if args.saltos:
         nodo = {
             "preventa": "agente_preventa",

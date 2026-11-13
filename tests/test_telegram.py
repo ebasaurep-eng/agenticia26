@@ -1,8 +1,5 @@
 import importlib
 
-from fastapi.testclient import TestClient
-
-
 api_module = importlib.import_module("api.app")
 
 
@@ -32,13 +29,13 @@ class FakeAsyncClient:
         return FakeTelegramResponse()
 
 
-def test_telegram_authenticates_routes_and_replies(monkeypatch):
+def test_telegram_authenticates_routes_and_replies(monkeypatch, api_runtime, api_client):
     monkeypatch.setenv("TELEGRAM_SECRET", "test-secret")
     monkeypatch.setenv("TELEGRAM_TOKEN", "123:test-token")
     FakeAsyncClient.calls = []
     graph_calls = []
 
-    def invoke(state, *, config):
+    async def invoke(state, *, config):
         graph_calls.append((state, config))
         return {
             "ruta": "preventa",
@@ -46,9 +43,9 @@ def test_telegram_authenticates_routes_and_replies(monkeypatch):
             "respuesta": "Respuesta de preventa.",
         }
 
-    monkeypatch.setattr(api_module.graph, "invoke", invoke)
+    monkeypatch.setattr(api_runtime.graph, "ainvoke", invoke)
     monkeypatch.setattr(api_module.httpx, "AsyncClient", FakeAsyncClient)
-    client = TestClient(api_module.app)
+    client = api_client
 
     response = client.post(
         "/telegram",
@@ -65,9 +62,9 @@ def test_telegram_authenticates_routes_and_replies(monkeypatch):
     }
 
 
-def test_telegram_rejects_wrong_secret_without_processing(monkeypatch):
+def test_telegram_rejects_wrong_secret_without_processing(monkeypatch, api_client):
     monkeypatch.setenv("TELEGRAM_SECRET", "test-secret")
-    client = TestClient(api_module.app)
+    client = api_client
     response = client.post(
         "/telegram",
         headers={"X-Telegram-Bot-Api-Secret-Token": "wrong"},
@@ -77,9 +74,9 @@ def test_telegram_rejects_wrong_secret_without_processing(monkeypatch):
     assert "test-secret" not in response.text
 
 
-def test_telegram_ignores_updates_without_text(monkeypatch):
+def test_telegram_ignores_updates_without_text(monkeypatch, api_client):
     monkeypatch.setenv("TELEGRAM_SECRET", "test-secret")
-    client = TestClient(api_module.app)
+    client = api_client
     response = client.post(
         "/telegram",
         headers={"X-Telegram-Bot-Api-Secret-Token": "test-secret"},
@@ -89,14 +86,14 @@ def test_telegram_ignores_updates_without_text(monkeypatch):
     assert response.json() == {"ok": True}
 
 
-def test_telegram_acknowledges_model_failure_with_200(monkeypatch):
+def test_telegram_acknowledges_model_failure_with_200(monkeypatch, api_runtime, api_client):
     monkeypatch.setenv("TELEGRAM_SECRET", "test-secret")
 
-    def fail_invoke(*_args, **_kwargs):
+    async def fail_invoke(*_args, **_kwargs):
         raise RuntimeError("fallo simulado del modelo")
 
-    monkeypatch.setattr(api_module.graph, "invoke", fail_invoke)
-    client = TestClient(api_module.app)
+    monkeypatch.setattr(api_runtime.graph, "ainvoke", fail_invoke)
+    client = api_client
     response = client.post(
         "/telegram",
         headers={"X-Telegram-Bot-Api-Secret-Token": "test-secret"},

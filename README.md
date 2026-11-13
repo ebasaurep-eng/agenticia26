@@ -28,9 +28,36 @@ Desde la raíz, con el entorno virtual activado:
 python main.py router "¿Tienen la polera azul en talla M?"
 python main.py router "Mi pedido llegó roto" --saltos
 python main.py router "hola" --diagrama
+python main.py router "Busco un televisor" --hilo cliente1
 ```
 
 `--saltos` imprime los nodos y el motivo del router; `--diagrama` muestra Mermaid sin invocar el modelo.
+
+## Memoria persistente (Postgres)
+
+Configura `DATABASE_URL` con la cadena de conexión de tu base Postgres, en `.env` para local y en **Settings → Config Vars** para Heroku. El valor de `.env.example` es ficticio; reemplázalo o deja `DATABASE_URL` vacía para usar RAM. Usa los parámetros SSL que indique tu proveedor (por ejemplo `?sslmode=require`). Nunca subas la cadena real a Git.
+
+Al arrancar, la API abre un único pool asíncrono de **mínimo 1 y máximo 2 conexiones**, comprueba las conexiones antes de usarlas y ejecuta `setup()` para crear las tablas del checkpointer. Lo cierra al apagarse. La terminal usa `PostgresSaver` síncrono con los mismos límites y cierra su pool al terminar cada comando. El usuario de la base debe tener permiso para crear las tablas e índices de LangGraph.
+
+Si falta la variable o falla la conexión/configuración inicial, la API registra el motivo y sigue en RAM. `GET /health` informa `"memoria": "postgres"` o `"memoria": "ram"`. La RAM **no persiste** entre procesos ni reinicios. El fallback solo se selecciona al arrancar: si se usó RAM por un fallo temporal, reinicia cuando Postgres esté disponible. Cada proceso tiene su propio pool; usa un único worker en Heroku para no multiplicar conexiones en una base compartida.
+
+El `thread_id` de `/chat` sigue siendo `user_id`; en Telegram es `chat_id`. La terminal usa un hilo nuevo por defecto: usa `--hilo` para recuperar la misma conversación en ejecuciones distintas. Todos deben apuntar a la misma base para compartir memoria.
+
+Prueba en dos procesos separados, con `DATABASE_URL` y `GOOGLE_API_KEY` válidas:
+
+```powershell
+python main.py router "me llamo Ana y busco un televisor de 55 pulgadas" --hilo prueba1
+python main.py router "tengo hasta 500 mil pesos" --hilo prueba1
+python scripts/ver_memoria.py prueba1
+```
+
+Para listar los hilos con su cantidad de checkpoints y la fecha del último:
+
+```powershell
+python scripts/ver_memoria.py
+```
+
+El visor no llama al modelo. Lee los mensajes del último checkpoint en su orden original (sin duplicarlos a partir de checkpoints previos). Sin Postgres informa que no puede acceder a la RAM de otros procesos. En una base compartida puede listar hilos de otros usuarios: ejecútalo solo si estás autorizado y no publiques su salida. Persistir el historial no cambia las reglas del router ni convierte los agentes cascarón en asistentes conversacionales.
 
 ## Levantar la API
 
@@ -72,7 +99,7 @@ Usa la misma clave en **Authorize** de `/docs` o en la cabecera `X-API-Key` de t
 Las pruebas de autenticación y webhook no llaman al modelo ni a Telegram:
 
 ```powershell
-pytest -q tests/test_api.py tests/test_telegram.py
+pytest -q tests/test_api.py tests/test_telegram.py tests/test_memoria.py
 ```
 
 Con `.env` configurado, ejecuta las 15 pruebas parametrizadas (exigen al menos 13 aciertos; llaman al modelo):

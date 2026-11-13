@@ -1,17 +1,17 @@
 import logging
 import os
 import hmac
-import asyncio
 import secrets
+from contextlib import asynccontextmanager
 from typing import Any, Literal
 
 import httpx
-from fastapi import Body, FastAPI, Header, HTTPException, Security
+from fastapi import Body, FastAPI, Header, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.router.graph import graph
+from src.router.runtime import open_async_graph
 
 logger = logging.getLogger(__name__)
 
@@ -93,9 +93,20 @@ class ChatResponse(BaseModel):
 class HealthResponse(BaseModel):
     ok: bool = Field(..., description="Indica que la API está disponible.", examples=[True])
     modelo: str = Field(..., description="Modelo configurado para el router.", examples=["gemini-3.5-flash-lite"])
+    memoria: Literal["ram", "postgres"] = Field(
+        ..., description="Memoria activa del grafo en este proceso.", examples=["postgres"]
+    )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with open_async_graph() as runtime:
+        app.state.router = runtime
+        yield
 
 
 app = FastAPI(
+    lifespan=lifespan,
     title="Ecommerce Router API",
     version="1.0.0",
     description=(
@@ -113,8 +124,12 @@ app = FastAPI(
     summary="Comprobar estado de la API",
     description="Devuelve disponibilidad de la API y el nombre del modelo configurado.",
 )
-async def health() -> HealthResponse:
-    return HealthResponse(ok=True, modelo=os.getenv("MODELO", "gemini-3.5-flash-lite"))
+async def health(request: Request) -> HealthResponse:
+    return HealthResponse(
+        ok=True,
+        modelo=os.getenv("MODELO", "gemini-3.5-flash-lite"),
+        memoria=request.app.state.router.memoria,
+    )
 
 
 @app.post(
@@ -131,9 +146,9 @@ async def health() -> HealthResponse:
         502: {"description": "El modelo de enrutamiento no pudo procesar el mensaje."},
     },
 )
-async def chat(request: ChatRequest) -> ChatResponse:
+async def chat(request: ChatRequest, http_request: Request) -> ChatResponse:
     try:
-        result = graph.invoke(
+        result = await http_request.app.state.router.graph.ainvoke(
             {"messages": [HumanMessage(content=request.texto)]},
             config={"configurable": {"thread_id": request.user_id}},
         )
@@ -155,6 +170,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
     summary="Recibir un update de Telegram",
 )
 async def telegram(
+    request: Request,
     payload: Any = Body(...),
     telegram_secret: str | None = Header(
         default=None, alias="X-Telegram-Bot-Api-Secret-Token"
@@ -185,8 +201,7 @@ async def telegram(
         return {"ok": True}
 
     try:
-        result = await asyncio.to_thread(
-            graph.invoke,
+        result = await request.app.state.router.graph.ainvoke(
             {"messages": [HumanMessage(content=text)]},
             config={"configurable": {"thread_id": str(chat_id)}},
         )

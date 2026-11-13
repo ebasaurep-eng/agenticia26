@@ -11,20 +11,21 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 load_dotenv(ROOT / ".env")
 
-from src.router.graph import graph  # noqa: E402
+from src.router.runtime import open_graph  # noqa: E402
 
 
 def main() -> int:
     casos = json.loads((ROOT / "tests" / "casos_router.json").read_text(encoding="utf-8"))
     filas = []
-    for caso in casos:
-        resultado = graph.invoke(
-            {"messages": [HumanMessage(content=caso["mensaje"])]},
-            config={"configurable": {"thread_id": str(uuid4())}},
-        )
-        obtenido = resultado["ruta"]
-        marca = "✔" if obtenido == caso["esperado"] else "✘"
-        filas.append((caso["mensaje"], caso["esperado"], obtenido, marca, resultado["motivo"]))
+    with open_graph() as runtime:
+        for caso in casos:
+            resultado = runtime.graph.invoke(
+                {"messages": [HumanMessage(content=caso["mensaje"])]},
+                config={"configurable": {"thread_id": str(uuid4())}},
+            )
+            obtenido = resultado["ruta"]
+            marca = "✔" if obtenido == caso["esperado"] else "✘"
+            filas.append((caso["mensaje"], caso["esperado"], obtenido, marca, resultado["motivo"]))
 
     encabezados = ("Mensaje", "Esperado", "Obtenido", "OK", "Motivo del router")
     anchos = [
