@@ -13,6 +13,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool, ConnectionPool
 
 from .graph import build_graph
+from .reclamos import CREAR_TABLA_RECLAMOS, configurar_reclamos
 
 
 logger = logging.getLogger(__name__)
@@ -67,6 +68,18 @@ def open_graph():
     else:
         logger.warning("Memoria RAM: DATABASE_URL no está configurada.")
 
+    reclamos_url = None
+    if memoria == "postgres":
+        try:
+            with pool.connection() as connection:
+                connection.execute(CREAR_TABLA_RECLAMOS)
+            reclamos_url = database_url
+        except Exception as exc:
+            logger.warning(
+                "No se pudo preparar la tabla reclamos (%s).", type(exc).__name__
+            )
+    configurar_reclamos(reclamos_url)
+
     try:
         yield RouterRuntime(build_graph(saver), saver, memoria)
     finally:
@@ -107,6 +120,18 @@ async def open_async_graph():
             )
     else:
         logger.warning("Memoria RAM: DATABASE_URL no está configurada.")
+
+    reclamos_url = None
+    if memoria == "postgres":
+        try:
+            async with pool.connection() as connection:
+                await connection.execute(CREAR_TABLA_RECLAMOS)
+            reclamos_url = database_url
+        except Exception as exc:
+            logger.warning(
+                "No se pudo preparar la tabla reclamos (%s).", type(exc).__name__
+            )
+    configurar_reclamos(reclamos_url)
 
     try:
         yield RouterRuntime(build_graph(saver), saver, memoria)

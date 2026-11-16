@@ -33,6 +33,7 @@ def test_chat_con_clave_responde_200(monkeypatch, api_runtime, api_client):
         "ruta": "preventa",
         "motivo": "Consulta disponibilidad de un producto.",
         "respuesta": "Respuesta de prueba.",
+        "saltos": ["router", "agente_preventa", "buscar_productos", "ver_producto"],
     }
     invoke = api_runtime.graph.ainvoke
     invoke.return_value = expected
@@ -54,3 +55,37 @@ def test_chat_con_clave_responde_200(monkeypatch, api_runtime, api_client):
     assert response.json() == expected
     invoke.assert_awaited_once()
     assert invoke.call_args.kwargs["config"]["configurable"]["thread_id"] == "usuario-test"
+
+
+def test_chat_sin_saltos_no_inventa_un_recorrido(monkeypatch, api_runtime, api_client):
+    monkeypatch.setenv("API_KEY", "clave-de-prueba")
+    api_runtime.graph.ainvoke.return_value = {
+        "ruta": "generica", "motivo": "Saludo.", "respuesta": "Hola."
+    }
+    response = api_client.post(
+        "/chat",
+        headers={"X-API-Key": "clave-de-prueba"},
+        json={"user_id": "usuario-test", "texto": "hola"},
+    )
+    assert response.status_code == 200
+    assert response.json()["saltos"] == []
+
+
+@pytest.mark.parametrize("route, steps", [
+    ("generica", ["router", "respuesta_generica"]),
+    ("postventa", ["router", "agente_postventa", "estado_pedido", "politica", "estado_pedido"]),
+])
+def test_chat_conserva_orden_y_repeticiones_de_los_saltos(
+    monkeypatch, api_runtime, api_client, route, steps
+):
+    monkeypatch.setenv("API_KEY", "clave-de-prueba")
+    api_runtime.graph.ainvoke.return_value = {
+        "ruta": route, "motivo": "Motivo de prueba.", "respuesta": "Respuesta.", "saltos": steps
+    }
+    response = api_client.post(
+        "/chat",
+        headers={"X-API-Key": "clave-de-prueba"},
+        json={"user_id": "usuario-test", "texto": "consulta"},
+    )
+    assert response.status_code == 200
+    assert response.json()["saltos"] == steps

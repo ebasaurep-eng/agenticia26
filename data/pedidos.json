@@ -1,0 +1,77 @@
+[
+  {
+    "numero": "4521",
+    "nombre_cliente": "Ana Morales",
+    "productos": [{"nombre": "Televisor Samsung Crystal UHD 55 pulgadas", "cantidad": 1}],
+    "fecha_compra": "2026-11-04",
+    "estado": "entregado",
+    "fecha_estimada_entrega": "2026-11-08",
+    "codigo_seguimiento": "FARO-CL-4521"
+  },
+  {
+    "numero": "4522",
+    "nombre_cliente": "Diego Rojas",
+    "productos": [{"nombre": "Celular Motorola Moto G84 256 GB", "cantidad": 1}],
+    "fecha_compra": "2026-11-15",
+    "estado": "preparando",
+    "fecha_estimada_entrega": "2026-11-19",
+    "codigo_seguimiento": "FARO-CL-4522"
+  },
+  {
+    "numero": "4523",
+    "nombre_cliente": "Camila Soto",
+    "productos": [{"nombre": "Televisor LG OLED 48 pulgadas", "cantidad": 1}],
+    "fecha_compra": "2026-11-12",
+    "estado": "despachado",
+    "fecha_estimada_entrega": "2026-11-17",
+    "codigo_seguimiento": "FARO-CL-4523"
+  },
+  {
+    "numero": "4524",
+    "nombre_cliente": "Javier Muñoz",
+    "productos": [{"nombre": "Celular Apple iPhone 15 128 GB", "cantidad": 1}],
+    "fecha_compra": "2026-10-27",
+    "estado": "entregado",
+    "fecha_estimada_entrega": "2026-10-30",
+    "codigo_seguimiento": "FARO-CL-4524"
+  },
+  {
+    "numero": "4525",
+    "nombre_cliente": "Valentina Pérez",
+    "productos": [{"nombre": "Celular Samsung Galaxy A55 256 GB", "cantidad": 1}],
+    "fecha_compra": "2026-10-21",
+    "estado": "devuelto",
+    "fecha_estimada_entrega": "2026-10-25",
+    "codigo_seguimiento": "FARO-CL-4525"
+  },
+  {
+    "numero": "4526",
+    "nombre_cliente": "Matías Fuentes",
+    "productos": [{"nombre": "Televisor TCL QLED 65 pulgadas", "cantidad": 1}],
+    "fecha_compra": "2026-11-16",
+    "estado": "preparando",
+    "fecha_estimada_entrega": "2026-11-20",
+    "codigo_seguimiento": "FARO-CL-4526"
+  },
+  {
+    "numero": "4527",
+    "nombre_cliente": "Fernanda Torres",
+    "productos": [
+      {"nombre": "Celular Xiaomi Redmi Note 13 256 GB", "cantidad": 1},
+      {"nombre": "Celular Motorola Edge 50 256 GB", "cantidad": 1}
+    ],
+    "fecha_compra": "2026-11-13",
+    "estado": "despachado",
+    "fecha_estimada_entrega": "2026-11-18",
+    "codigo_seguimiento": "FARO-CL-4527"
+  },
+  {
+    "numero": "4528",
+    "nombre_cliente": "Rodrigo Silva",
+    "productos": [{"nombre": "Televisor Sony Bravia LED 50 pulgadas", "cantidad": 1}],
+    "fecha_compra": "2026-08-10",
+    "estado": "devuelto",
+    "fecha_estimada_entrega": "2026-08-14",
+    "codigo_seguimiento": "FARO-CL-4528"
+  }
+]

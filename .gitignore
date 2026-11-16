@@ -8,6 +8,8 @@ __pycache__/
 *.py[cod]
 data/*
 !data/tienda.md
+!data/pedidos.json
+!data/politicas.md
 local-data/
 *.db
 *.sqlite

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#075e54">
+  <meta name="description" content="Conversa con tu agente de ecommerce y explora los nodos y herramientas de cada respuesta.">
+  <title>Chat · Asistente de la tienda</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/chat.css">
+  <script src="/static/chat.js" defer></script>
+</head>
+<body>
+  <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9L2 9 22 2ZM22 2 11 13"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="18" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M6 7v8a4 4 0 0 0 4 4h6M8 5h8"/></symbol>
+    <symbol id="i-bot" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="14" rx="4"/><path d="M12 3v4M1 12v5M23 12v5M8 12v2M16 12v2M9 17h6"/><circle cx="12" cy="2" r="1"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="8" r="5"/><path d="m12 12 9 9M16 16l3-3M19 19l3-3"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 3 8 4v5c0 5-8 9-8 9s-8-4-8-9V7l8-4Z"/><path d="m8 12 3 3 5-6"/></symbol>
+    <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14 6a5 5 0 0 0-6 6l-5 5a3 3 0 0 0 4 4l5-5a5 5 0 0 0 6-6l-3 3-4-4 3-3Z"/></symbol>
+    <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5 7h14l2 14H3L5 7Z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/></symbol>
+  </svg>
+
+  <div class="workspace show-trace" id="workspace">
+    <button class="screen-overlay" id="screen-overlay" type="button" aria-label="Cerrar panel"></button>
+    <aside class="sidebar" aria-label="Conversaciones">
+      <a class="brand" href="/" aria-label="Inicio del chat"><span class="brand-icon"><svg class="icon"><use href="#i-chat"/></svg></span><span>tienda<span class="brand-dot">.</span><small>AGENT WORKSPACE</small></span></a>
+      <div class="sidebar-heading"><h1>Chats</h1><button class="icon-button" id="new-chat" type="button" title="Nueva conversación" aria-label="Nueva conversación"><svg class="icon"><use href="#i-plus"/></svg></button></div>
+      <div class="sidebar-caption"><span class="status-dot"></span> Tu asistente de ecommerce</div>
+      <nav id="conversations" class="conversations" aria-label="Elegir conversación"></nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-tip"><svg class="icon"><use href="#i-route"/></svg><p>No solo la respuesta.<br><strong>También el recorrido.</strong></p></div>
+        <button class="access-button" id="settings-button" type="button"><span class="settings-icon"><svg class="icon"><use href="#i-key"/></svg></span><span>Acceso a la API<small id="key-status">Configura tu clave para conversar</small></span><svg class="icon small"><use href="#i-arrow"/></svg></button>
+      </div>
+    </aside>
+
+    <section class="chat" aria-label="Chat con el agente">
+      <header class="chat-header">
+        <button class="icon-button mobile-only" id="chats-toggle" type="button" aria-label="Ver conversaciones" aria-controls="conversations" aria-expanded="false"><svg class="icon"><use href="#i-chat"/></svg></button>
+        <div class="avatar"><svg class="icon"><use href="#i-bot"/></svg><span></span></div>
+        <div class="contact"><h2>Asistente de la tienda</h2><p id="connection-status" role="status">Conectando con tu agente…</p></div>
+        <button class="trace-toggle" id="trace-toggle" type="button" aria-controls="trace-panel" aria-expanded="true"><svg class="icon"><use href="#i-route"/></svg><span>Ver saltos</span></button>
+      </header>
+
+      <main class="message-area" id="message-area">
+        <div class="day-badge">HOY</div>
+        <section class="welcome" id="welcome">
+          <div class="welcome-icon"><svg class="icon"><use href="#i-bag"/></svg><span>✦</span></div>
+          <div class="eyebrow">TU TIENDA, A UN MENSAJE</div>
+          <h2>Hola, ¿en qué te ayudo?</h2>
+          <p>Encuentra tu próximo favorito, consulta tu pedido<br class="desktop-break"> o resuelve tus dudas. Yo me encargo de la ruta.</p>
+          <div class="suggestions">
+            <button type="button" data-suggestion="Busco un televisor. ¿Qué opciones tienen?"><span>PREVENTA</span>Busco un televisor<svg class="icon small"><use href="#i-arrow"/></svg></button>
+            <button type="button" data-suggestion="¿Cuál es el estado de mi pedido 4521?"><span>POSTVENTA</span>¿Dónde está mi pedido?<svg class="icon small"><use href="#i-arrow"/></svg></button>
+            <button type="button" data-suggestion="Hola, ¿cuál es el horario de atención de la tienda?"><span>CONSULTAS</span>Horario de atención<svg class="icon small"><use href="#i-arrow"/></svg></button>
+          </div>
+          <div class="welcome-note"><svg class="icon small"><use href="#i-shield"/></svg> Cada respuesta tiene un recorrido que puedes explorar.</div>
+        </section>
+        <div class="messages" id="messages" role="log" aria-live="polite" aria-label="Mensajes de la conversación"></div>
+      </main>
+
+      <footer class="composer-area">
+        <div class="error-banner" id="connection-error" role="alert" hidden></div>
+        <form id="message-form" class="composer">
+          <label class="sr-only" for="message-input">Escribe un mensaje</label>
+          <textarea id="message-input" name="texto" rows="1" placeholder="Escribe un mensaje…" maxlength="12000" required></textarea>
+          <button class="send-button" id="send-button" type="submit" aria-label="Enviar mensaje" disabled><svg class="icon"><use href="#i-send"/></svg></button>
+        </form>
+        <div class="composer-hint"><span>Enter para enviar <span class="hint-divider">·</span> Shift + Enter para nueva línea</span><span><span class="status-dot" id="memory-dot"></span><span id="memory-label">Comprobando memoria</span></span></div>
+      </footer>
+    </section>
+
+    <aside class="trace-panel" id="trace-panel" aria-label="Recorrido del agente">
+      <header class="trace-header"><div><div class="eyebrow">DETRÁS DE LA RESPUESTA</div><h2>Recorrido del agente</h2></div><button class="icon-button" id="close-trace" type="button" aria-label="Cerrar recorrido"><svg class="icon small"><use href="#i-close"/></svg></button></header>
+      <div class="trace-content" id="trace-content" aria-live="polite"></div>
+      <footer class="trace-footer"><svg class="icon small"><use href="#i-shield"/></svg><p>Recorrido real registrado por LangGraph.<br>Se muestra al terminar cada respuesta.</p></footer>
+    </aside>
+  </div>
+
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <form id="settings-form">
+      <div class="dialog-heading"><span class="settings-icon"><svg class="icon"><use href="#i-key"/></svg></span><button class="icon-button" id="close-settings" type="button" aria-label="Cerrar configuración"><svg class="icon"><use href="#i-close"/></svg></button></div>
+      <h2 id="settings-title">Conecta con tu agente</h2>
+      <p>Introduce el valor de <code>API_KEY</code> de tu archivo <code>.env</code>. El chat mantiene la misma protección que la API.</p>
+      <label for="api-key">Clave de acceso</label>
+      <input id="api-key" name="api_key" type="password" placeholder="Tu API_KEY" autocomplete="off" spellcheck="false" required>
+      <p class="privacy-note"><svg class="icon small"><use href="#i-shield"/></svg> La clave solo se conserva en memoria en esta pestaña. No se guarda en el navegador ni se incluye en la página.</p>
+      <button class="primary-button" type="submit">Guardar y continuar<svg class="icon small"><use href="#i-arrow"/></svg></button>
+    </form>
+  </dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+</body>
+</html>

@@ -3,17 +3,21 @@ import os
 import hmac
 import secrets
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, Literal
 
 import httpx
 from fastapi import Body, FastAPI, Header, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.router.runtime import open_async_graph
 
 logger = logging.getLogger(__name__)
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 api_key_header = APIKeyHeader(
     name="X-API-Key",
@@ -88,6 +92,11 @@ class ChatResponse(BaseModel):
         ..., description="Respuesta del agente asignado.",
         examples=["Soy el agente de preventa. Recibí: ¿Tienen la polera azul en talla M?. Pronto podré ayudarte con productos y compras."],
     )
+    saltos: list[str] = Field(
+        default_factory=list,
+        description="Nodos y herramientas recorridos, en el orden registrado por el agente.",
+        examples=[["router", "agente_preventa", "buscar_productos"]],
+    )
 
 
 class HealthResponse(BaseModel):
@@ -115,6 +124,23 @@ app = FastAPI(
     ),
     openapi_tags=TAGS_METADATA,
 )
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/", response_class=FileResponse, include_in_schema=False)
+async def chat_ui() -> FileResponse:
+    return FileResponse(
+        STATIC_DIR / "index.html",
+        headers={
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": (
+                "default-src 'self'; script-src 'self'; style-src 'self'; "
+                "img-src 'self' data:; connect-src 'self'; base-uri 'none'; "
+                "frame-ancestors 'none'; form-action 'self'"
+            ),
+        },
+    )
 
 
 @app.get(
@@ -153,7 +179,8 @@ async def chat(request: ChatRequest, http_request: Request) -> ChatResponse:
             config={"configurable": {"thread_id": request.user_id}},
         )
         return ChatResponse(
-            ruta=result["ruta"], motivo=result["motivo"], respuesta=result["respuesta"]
+            ruta=result["ruta"], motivo=result["motivo"], respuesta=result["respuesta"],
+            saltos=result.get("saltos", []),
         )
     except Exception as exc:
         logger.exception("Fallo al enrutar el mensaje de chat")

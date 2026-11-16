@@ -28,8 +28,11 @@ def main() -> None:
         raise
 
     if args.diagrama:
-        graph = module.build_graph()
-        print(graph.get_graph().draw_mermaid())
+        if hasattr(module, "build_diagram"):
+            diagram = module.build_diagram()
+        else:
+            diagram = module.build_graph().get_graph()
+        print(diagram.draw_mermaid())
         return
 
     runtime_module = importlib.import_module(f"src.{args.agente}.runtime")
@@ -39,12 +42,21 @@ def main() -> None:
             {"messages": [HumanMessage(content=args.mensaje)]}, config=config
         )
     if args.saltos:
-        nodo = {
-            "preventa": "agente_preventa",
-            "postventa": "agente_postventa",
-            "generica": "respuesta_generica",
-        }[result["ruta"]]
-        print(f"router → {nodo}")
+        saltos = result.get("saltos")
+        if not saltos:
+            nodo = {
+                "preventa": "agente_preventa",
+                "postventa": "agente_postventa",
+                "generica": "respuesta_generica",
+            }[result["ruta"]]
+            saltos = ["router", nodo]
+        etiquetas = [
+            "consultar_redes (A2A)" if salto == "consultar_redes" else salto
+            for salto in saltos
+        ]
+        # La entrega final es una etiqueta de terminal, no un nodo inventado
+        # dentro de los saltos registrados por LangGraph.
+        print(" → ".join([*etiquetas, "respuesta"]))
         print(f"Motivo: {result['motivo']}")
     print(result["respuesta"])
 

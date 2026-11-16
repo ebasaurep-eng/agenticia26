@@ -6,6 +6,7 @@ langchain-google-genai
 fastapi
 uvicorn
 httpx
+a2a-sdk[http-server,fastapi]==1.2.2
 pydantic
 python-dotenv
 pytest
