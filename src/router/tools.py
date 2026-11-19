@@ -109,11 +109,11 @@ def ver_producto(sku_id: str) -> dict[str, Any] | str:
 @tool
 def mejores_ofertas(
     categoria: Categoria | None = None,
-    limite: Annotated[int, Field(ge=1)] = 5,
+    limite: Annotated[int, Field(ge=1, le=5)] = 5,
 ) -> list[dict[str, Any]] | str:
     """Busca productos con el mayor descuento_pct registrado, con su link.
 
-    categoria puede ser Smartphones o Televisores. Devuelve 5 por defecto,
+    categoria puede ser Smartphones o Televisores. limite va de 1 a 5; devuelve 5 por defecto,
     omitiendo productos sin descuento informado; no calcula descuentos ausentes.
     """
     return consultar_catalogo(
@@ -238,7 +238,11 @@ def crear_reclamo(
         return "Faltan número de pedido, motivo o detalle; no se creó el reclamo.", None
     if motivo.casefold() == "derivar a persona":
         motivo = "derivar a persona"
-    thread_id = str(config.get("configurable", {}).get("thread_id", ""))
+    hilo = config.get("configurable", {}).get("thread_id")
+    thread_id = str(hilo).strip() if hilo is not None else ""
+    if not thread_id:
+        logger.warning("Reclamo no registrado: la ejecución no tiene thread_id.")
+        return RECLAMOS_NO_DISPONIBLES, None
     try:
         ticket = guardar_reclamo(numero_pedido, motivo, detalle, thread_id)
     except ReclamosNoDisponibles:

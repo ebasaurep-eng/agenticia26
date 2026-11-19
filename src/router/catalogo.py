@@ -27,12 +27,14 @@ _CONSULTA_EN_CURSO = BoundedSemaphore(1)
 def _valor_json(value: Any) -> Any:
     """Conserva los numeric como números serializables por las herramientas."""
     if isinstance(value, Decimal):
+        if not value.is_finite():
+            return None
         return int(value) if value == value.to_integral_value() else float(value)
     return value
 
 
 def consultar_catalogo(
-    select: str, parametros: Mapping[str, Any] | Sequence[Any]
+    select: str, parametros: Mapping[str, Any] | Sequence[Any] = ()
 ) -> list[dict[str, Any]] | str:
     """Ejecuta un SELECT fijo con valores separados del SQL y cierra la conexión.
 
@@ -50,6 +52,7 @@ def consultar_catalogo(
 
     database_url = os.getenv("DATABASE_URL", "").strip()
     if not database_url:
+        logger.warning("Catálogo no disponible: DATABASE_URL no está configurada.")
         return CATALOGO_NO_DISPONIBLE
     if not _CONSULTA_EN_CURSO.acquire(timeout=TIMEOUT):
         logger.warning("Catálogo ocupado; se agotó el tiempo de espera.")
@@ -59,7 +62,7 @@ def consultar_catalogo(
         with closing(
             psycopg.connect(
                 database_url,
-                autocommit=True,
+                autocommit=False,
                 prepare_threshold=None,
                 row_factory=dict_row,
                 connect_timeout=TIMEOUT,
@@ -69,6 +72,10 @@ def consultar_catalogo(
                 ),
             )
         ) as connection:
+            # La propia transacción es de solo lectura, además de validar que
+            # la consulta sea un único SELECT fijo. closing() la termina y
+            # cierra la conexión también ante una excepción o un retorno.
+            connection.read_only = True
             with connection.cursor() as cursor:
                 cursor.execute(sql, parametros)
                 # Los numeric de Postgres llegan como Decimal. Las herramientas

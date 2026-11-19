@@ -22,8 +22,10 @@ from .prompts import (
     POSTVENTA_AVISO_DERIVACION,
     POSTVENTA_DERIVACION_CREADA,
     POSTVENTA_FALLBACK,
+    POSTVENTA_OTROS_RECLAMOS_NO_CONFIRMADOS,
     POSTVENTA_PROMPT,
     POSTVENTA_RECLAMO_CREADO,
+    POSTVENTA_RECLAMO_NO_CONFIRMADO,
     PREVENTA_CATALOGO_NO_DISPONIBLE,
     PREVENTA_FALLBACK,
     PREVENTA_PROMPT,
@@ -214,6 +216,14 @@ def agente_postventa(state: RouterState, config: RunnableConfig) -> dict[str, ob
         and isinstance(message.artifact, dict)
         and message.artifact.get("ticket")
     ]
+    registros_no_confirmados = any(
+        message.type == "tool"
+        and message.name == "crear_reclamo"
+        and not (
+            isinstance(message.artifact, dict) and message.artifact.get("ticket")
+        )
+        for message in agent_messages
+    )
     if creados:
         # No ocultar un ticket ya guardado aunque falle el último paso del modelo
         # o este lo omita al redactar su respuesta de hasta cuatro líneas.
@@ -230,6 +240,14 @@ def agente_postventa(state: RouterState, config: RunnableConfig) -> dict[str, ob
             )
         ):
             respuesta = "\n".join([*respuesta.splitlines()[:3], comprobante])
+        if registros_no_confirmados:
+            respuesta = "\n".join([
+                *respuesta.splitlines()[:2],
+                comprobante,
+                POSTVENTA_OTROS_RECLAMOS_NO_CONFIRMADOS,
+            ])
+    elif registros_no_confirmados:
+        respuesta = POSTVENTA_RECLAMO_NO_CONFIRMADO
 
     # La memoria conversacional conserva usuario y respuesta, no un bucle ReAct
     # incompleto ni llamadas internas sin resolver si el modelo falla.

@@ -82,6 +82,14 @@ def guardar_reclamo(
 ) -> str:
     """Devuelve el ticket solo después de guardar el reclamo en el backend activo."""
     global _aviso_ram
+    numero_pedido = numero_pedido.strip().removeprefix("#").strip()
+    motivo = motivo.strip()
+    detalle = detalle.strip()
+    thread_id = thread_id.strip()
+    if not all((numero_pedido, motivo, detalle, thread_id)):
+        logger.warning("Reclamo no registrado: faltan datos o el hilo de la conversación.")
+        raise ReclamosNoDisponibles(RECLAMOS_NO_DISPONIBLES)
+
     ticket = f"REC-{uuid4().hex.upper()}"
     fila = {
         "ticket": ticket,
@@ -106,12 +114,17 @@ def guardar_reclamo(
     # Si una escritura falla con Postgres activo, NO pasar a RAM ni reintentar:
     # podría haberse confirmado en el servidor antes de perder la conexión.
     with _conexion(database_url) as connection:
-        connection.execute(
-            """INSERT INTO reclamos (ticket, numero_pedido, motivo, detalle, thread_id)
-               VALUES (%(ticket)s, %(numero_pedido)s, %(motivo)s, %(detalle)s, %(thread_id)s)""",
-            fila,
-        )
-    return ticket
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """INSERT INTO reclamos (ticket, numero_pedido, motivo, detalle, thread_id)
+                   VALUES (%(ticket)s, %(numero_pedido)s, %(motivo)s, %(detalle)s, %(thread_id)s)
+                   RETURNING ticket""",
+                fila,
+            )
+            guardado = cursor.fetchone()
+            if not guardado or not guardado.get("ticket"):
+                raise ReclamosNoDisponibles(RECLAMOS_NO_DISPONIBLES)
+            return str(guardado["ticket"])
 
 
 def listar_reclamos(
